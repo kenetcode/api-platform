@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: planillas-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: planillas
+      MYSQL_USER: planillas_user
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "planillas_user", "-p${DB_PASSWORD:-planillas_dev_2024}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: planillas-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: "jdbc:mysql://db:3306/planillas?useSSL=false&serverTimezone=America/El_Salvador&allowPublicKeyRetrieval=true"
+      DB_USER: planillas_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      API_KEY_SALT: ${API_KEY_SALT}
+    volumes:
+      - api_uploads:/app/uploads
+
+volumes:
+  mysql_data:
+  api_uploads:

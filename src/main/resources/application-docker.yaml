@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mysql://db:3306/planillas?useSSL=false&serverTimezone=America/El_Salvador&allowPublicKeyRetrieval=true}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.rhu: INFO
