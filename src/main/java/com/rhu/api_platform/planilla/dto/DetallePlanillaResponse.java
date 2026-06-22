@@ -18,6 +18,20 @@ public class DetallePlanillaResponse {
     private BigDecimal comisiones;
     private BigDecimal bonificaciones;
     private BigDecimal descuentosVoluntarios;
+
+    private Integer diasDescontados;
+    private Integer diasPagoParcial;
+    private BigDecimal porcentajePagoParcial;
+    private BigDecimal horasDescontadas;
+    private Integer diasReportarIsssAfp;
+
+    private Integer diasDescansoTrabajados;
+    private BigDecimal recargoDescansoTrabajado;
+    private Integer semanasConFaltaInjustificada;
+    private BigDecimal descuentoSeptimoDia;
+
+    private BigDecimal montoQuincena25;
+
     private BigDecimal salarioBruto;
     private BigDecimal isss;
     private BigDecimal afp;

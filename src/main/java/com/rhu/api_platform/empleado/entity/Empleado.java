@@ -1,5 +1,6 @@
 package com.rhu.api_platform.empleado.entity;
 
+import com.rhu.api_platform.turno.entity.Turno;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -83,6 +84,10 @@ public class Empleado {
 
     @Column(name = "contacto_emergencia_telefono", length = 15)
     private String contactoEmergenciaTelefono;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "turno_id")
+    private Turno turno;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)

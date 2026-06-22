@@ -6,6 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
+import java.time.LocalDate;
+
 @Data
 public class CrearPlanillaRequest {
     @NotBlank(message = "El período es obligatorio")
@@ -14,4 +16,10 @@ public class CrearPlanillaRequest {
 
     @NotNull(message = "El tipo de planilla es obligatorio")
     private TipoPlanilla tipo;
+
+    private Integer numeroQuincena;
+
+    private LocalDate fechaInicio;
+
+    private LocalDate fechaFin;
 }

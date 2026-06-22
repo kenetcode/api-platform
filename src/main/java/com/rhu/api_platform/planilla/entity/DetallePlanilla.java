@@ -49,6 +49,47 @@ public class DetallePlanilla {
     @Builder.Default
     private BigDecimal descuentosVoluntarios = BigDecimal.ZERO;
 
+    // Desglose de ausencias/incapacidades aplicado
+    @Column(name = "dias_descontados")
+    @Builder.Default
+    private Integer diasDescontados = 0;
+
+    @Column(name = "dias_pago_parcial")
+    @Builder.Default
+    private Integer diasPagoParcial = 0;
+
+    @Column(name = "porcentaje_pago_parcial", precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal porcentajePagoParcial = BigDecimal.ZERO;
+
+    @Column(name = "horas_descontadas", precision = 8, scale = 2)
+    @Builder.Default
+    private BigDecimal horasDescontadas = BigDecimal.ZERO;
+
+    @Column(name = "dias_reportar_isss_afp")
+    @Builder.Default
+    private Integer diasReportarIsssAfp = 0;
+
+    @Column(name = "dias_descanso_trabajados")
+    @Builder.Default
+    private Integer diasDescansoTrabajados = 0;
+
+    @Column(name = "recargo_descanso_trabajado", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal recargoDescansoTrabajado = BigDecimal.ZERO;
+
+    @Column(name = "descuento_septimo_dia", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal descuentoSeptimoDia = BigDecimal.ZERO;
+
+    @Column(name = "semanas_con_falta_injustificada")
+    @Builder.Default
+    private Integer semanasConFaltaInjustificada = 0;
+
+    @Column(name = "monto_quincena_25", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal montoQuincena25 = BigDecimal.ZERO;
+
     // Resultados calculados
     @Column(name = "salario_bruto", precision = 12, scale = 2)
     private BigDecimal salarioBruto;

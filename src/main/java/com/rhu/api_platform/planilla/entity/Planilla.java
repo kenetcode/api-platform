@@ -23,6 +23,15 @@ public class Planilla {
     @Column(name = "periodo_mes", nullable = false, length = 7)
     private String periodoMes; // YYYY-MM
 
+    @Column(name = "numero_quincena", length = 1)
+    private Integer numeroQuincena; // 1 o 2
+
+    @Column(name = "fecha_inicio", nullable = false)
+    private LocalDate fechaInicio;
+
+    @Column(name = "fecha_fin", nullable = false)
+    private LocalDate fechaFin;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 15)
     private TipoPlanilla tipo;

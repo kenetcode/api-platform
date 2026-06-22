@@ -258,28 +258,15 @@ Mismo body que creación. **Response 200:** empleado actualizado.
 **Request:**
 ```json
 {
-  "tipo": "FALTA",
+  "tipo": "FALTA_INJUSTIFICADA",
   "fechaInicio": "2026-02-10",
   "fechaFin": "2026-02-10",
-  "justificada": false,
   "observacion": "Sin aviso previo"
 }
 ```
-Valores de `tipo`: `FALTA`, `PERMISO`
+Valores de `tipo`: `INCAPACIDAD_COMUN`, `INCAPACIDAD_ISSS_TOTAL`, `PERMISO_CON_GOCE`, `PERMISO_SIN_GOCE`, `FALTA_INJUSTIFICADA`, `AUSENCIA_POR_HORAS`
 
-**Response 201:**
-```json
-{
-  "id": 1,
-  "empleadoId": 3,
-  "nombreEmpleado": "Carlos Martínez López",
-  "tipo": "FALTA",
-  "fechaInicio": "2026-02-10",
-  "fechaFin": "2026-02-10",
-  "justificada": false,
-  "observacion": "Sin aviso previo"
-}
-```
+**Response 201:** objeto ausencia/incapacidad con empleadoId y nombreEmpleado.
 
 ### GET /api/empleados/{id}/ausencias — Listar ausencias del empleado
 ### PUT /api/empleados/{id}/ausencias/{ausenciaId} — Actualizar ausencia
@@ -289,25 +276,11 @@ Valores de `tipo`: `FALTA`, `PERMISO`
 
 **Response 200:** array de ausencias del mes especificado.
 
-### POST /api/empleados/{id}/incapacidades — Registrar incapacidad
+### GET /api/empleados/{id}/incapacidades — Listar incapacidades del empleado
 
-**Request:**
-```json
-{
-  "tipo": "ENFERMEDAD",
-  "fechaInicio": "2026-02-15",
-  "fechaFin": "2026-02-20",
-  "dias": 6,
-  "documentoUrl": "https://..."
-}
-```
-Valores de `tipo`: `ENFERMEDAD`, `MATERNIDAD`, `RIESGO_PROFESIONAL`
+> **Nota:** Ausencias e incapacidades fueron unificadas en el backend. Este endpoint filtra automáticamente los registros de tipo `INCAPACIDAD_COMUN` e `INCAPACIDAD_ISSS_TOTAL`. Para registrar una incapacidad, use `POST /api/empleados/{id}/ausencias` con el tipo correspondiente.
 
-**Response 201:** objeto incapacidad con empleadoId y nombreEmpleado.
-
-### GET /api/empleados/{id}/incapacidades
-### PUT /api/empleados/{id}/incapacidades/{incId}
-### DELETE /api/empleados/{id}/incapacidades/{incId} — 204 sin body
+**Response 200:** array de incapacidades. Devuelve `[]` si no hay registros.
 
 ---
 
@@ -320,17 +293,19 @@ Valores de `tipo`: `ENFERMEDAD`, `MATERNIDAD`, `RIESGO_PROFESIONAL`
 ```json
 {
   "periodoMes": "2026-02",
-  "tipo": "MENSUAL"
+  "tipo": "QUINCENAL",
+  "numeroQuincena": 1
 }
 ```
-Valores de `tipo`: `QUINCENAL`, `MENSUAL`
+Valores de `tipo`: `QUINCENAL`, `QUINCENA_25`
 
 **Response 201:**
 ```json
 {
   "id": 1,
   "periodoMes": "2026-02",
-  "tipo": "MENSUAL",
+  "tipo": "QUINCENAL",
+  "numeroQuincena": 1,
   "estado": "BORRADOR",
   "creadoEn": "2026-02-01T08:00:00"
 }
@@ -369,7 +344,8 @@ No requiere body. Calcula ISSS, AFP, ISR y neto para todos los detalles capturad
 {
   "id": 1,
   "periodoMes": "2026-02",
-  "tipo": "MENSUAL",
+  "tipo": "QUINCENAL",
+  "numeroQuincena": 1,
   "estado": "CALCULADA",
   "totalBruto": 22484.40,
   "totalIsss": 674.53,
@@ -481,7 +457,7 @@ Ver sección [Ejemplo de boleta JSON](#ejemplo-de-boleta-json).
 {
   "empresa": "Supermercado La Cesta, S.A. de C.V.",
   "periodoMes": "2026-02",
-  "tipoPlanilla": "MENSUAL",
+  "tipoPlanilla": "QUINCENAL",
   "fechaGeneracion": "2026-02-28T16:30:00",
   "empleadoId": 3,
   "nombreCompleto": "Carlos Martínez López",

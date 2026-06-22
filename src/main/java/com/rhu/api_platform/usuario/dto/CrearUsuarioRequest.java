@@ -11,6 +11,9 @@ public class CrearUsuarioRequest {
     @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
+    @NotBlank(message = "El usuario es obligatorio")
+    private String username;
+
     @NotBlank(message = "El correo es obligatorio")
     @Email(message = "Formato de correo inválido")
     private String correo;

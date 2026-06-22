@@ -1,5 +1,8 @@
 package com.rhu.api_platform.config;
 
+import com.rhu.api_platform.empresa.ParametroEmpresaRepository;
+import com.rhu.api_platform.empresa.entity.ParametroEmpresa;
+import com.rhu.api_platform.empresa.entity.TipoParametroEmpresa;
 import com.rhu.api_platform.security.ApiKeyFiltro;
 import com.rhu.api_platform.security.RolUsuario;
 import com.rhu.api_platform.usuario.UsuarioRepository;
@@ -9,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.UUID;
 
 /**
@@ -31,9 +36,12 @@ public class InicializadorDatos implements CommandLineRunner {
     private static final String PASSWORD_DEFAULT = "Admin1234!";
 
     private final UsuarioRepository usuarioRepository;
+    private final ParametroEmpresaRepository parametroEmpresaRepository;
 
     @Override
     public void run(String... args) {
+        inicializarParametrosEmpresa();
+
         if (usuarioRepository.count() == 0) {
             // API key inicial (se regenera en cada login, esta es solo para el primer arranque)
             String apiKeyPlana = UUID.randomUUID().toString().replace("-", "")
@@ -41,6 +49,7 @@ public class InicializadorDatos implements CommandLineRunner {
 
             Usuario admin = Usuario.builder()
                     .nombre("Administrador")
+                    .username("admin")
                     .correo("admin@lacesta.com")
                     .rol(RolUsuario.RRHH)
                     .apiKeyHash(ApiKeyFiltro.hashApiKey(apiKeyPlana))
@@ -51,12 +60,46 @@ public class InicializadorDatos implements CommandLineRunner {
 
             log.warn("=================================================================");
             log.warn("  USUARIO ADMIN CREADO AUTOMÁTICAMENTE");
+            log.warn("  Usuario   : admin");
             log.warn("  Correo    : admin@lacesta.com");
             log.warn("  Contraseña: {}", PASSWORD_DEFAULT);
             log.warn("  Rol       : RRHH");
             log.warn("  Login     : POST /api/auth/login");
             log.warn("  Cambia la contraseña tras el primer login.");
             log.warn("=================================================================");
+        }
+    }
+
+    private void inicializarParametrosEmpresa() {
+        int anioActual = LocalDate.now().getYear();
+
+        crearParametroSiNoExiste(
+                "EMPRESA_ASUME_3_DIAS_INCAPACIDAD",
+                "true",
+                TipoParametroEmpresa.BOOLEAN,
+                "La empresa asume el pago de los primeros 3 días de incapacidad común.");
+
+        crearParametroSiNoExiste(
+                "EMPRESA_PORCENTAJE_PAGO_3_DIAS",
+                "100.00",
+                TipoParametroEmpresa.DECIMAL,
+                "Porcentaje de pago de los primeros 3 días de incapacidad común (cuando aplica).");
+
+        crearParametroSiNoExiste(
+                "EMPRESA_FECHA_PAGO_AGUINALDO",
+                LocalDate.of(anioActual, Month.DECEMBER, 20).toString(),
+                TipoParametroEmpresa.DATE,
+                "Fecha de pago del aguinaldo dentro de la ventana legal (20 oct - 20 dic).");
+    }
+
+    private void crearParametroSiNoExiste(String clave, String valor, TipoParametroEmpresa tipo, String descripcion) {
+        if (parametroEmpresaRepository.findByClave(clave).isEmpty()) {
+            parametroEmpresaRepository.save(ParametroEmpresa.builder()
+                    .clave(clave)
+                    .valor(valor)
+                    .tipo(tipo)
+                    .descripcion(descripcion)
+                    .build());
         }
     }
 }

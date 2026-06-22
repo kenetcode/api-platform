@@ -18,4 +18,7 @@ public class CapturarDetalleRequest {
     private BigDecimal comisiones;
     private BigDecimal bonificaciones;
     private BigDecimal descuentosVoluntarios;
+
+    @Min(value = 0, message = "Los días de descanso trabajados no pueden ser negativos")
+    private int diasDescansoTrabajados = 0;
 }

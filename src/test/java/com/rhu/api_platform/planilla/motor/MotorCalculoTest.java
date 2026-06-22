@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Motor de Cálculo — Pruebas unitarias")
@@ -23,64 +24,67 @@ class MotorCalculoTest {
                 .aportePatronalIsssPorc(new BigDecimal("0.075"))
                 .afpPorc(new BigDecimal("0.0725"))
                 .aportePatronalAfpPorc(new BigDecimal("0.0875"))
-                .isrExento(new BigDecimal("550.00"))
-                .isrTramo2Inicio(new BigDecimal("550.01"))
-                .isrTramo2Fin(new BigDecimal("895.24"))
+                // Tabla ISR quincenal 2026
+                .isrExento(new BigDecimal("275.00"))
+                .isrTramo2Inicio(new BigDecimal("275.01"))
+                .isrTramo2Fin(new BigDecimal("447.62"))
                 .isrTramo2Porc(new BigDecimal("0.10"))
-                .isrTramo2Cuota(new BigDecimal("17.67"))
-                .isrTramo3Inicio(new BigDecimal("895.25"))
-                .isrTramo3Fin(new BigDecimal("2038.10"))
+                .isrTramo2Cuota(new BigDecimal("8.83"))
+                .isrTramo3Inicio(new BigDecimal("447.63"))
+                .isrTramo3Fin(new BigDecimal("1019.05"))
                 .isrTramo3Porc(new BigDecimal("0.20"))
-                .isrTramo3Cuota(new BigDecimal("60.00"))
-                .isrTramo4Inicio(new BigDecimal("2038.11"))
+                .isrTramo3Cuota(new BigDecimal("30.00"))
+                .isrTramo4Inicio(new BigDecimal("1019.06"))
                 .isrTramo4Porc(new BigDecimal("0.30"))
-                .isrTramo4Cuota(new BigDecimal("288.57"))
+                .isrTramo4Cuota(new BigDecimal("144.28"))
                 .horasMensuales(new BigDecimal("240"))
                 .build();
     }
 
     // ===== ISR =====
 
+
+
     @Test
-    @DisplayName("ISR Tramo I — base gravada <= $550 → ISR = $0")
+    @DisplayName("ISR Tramo I — base gravada <= $275 → ISR = $0")
     void isrTramo1_exento() {
-        BigDecimal base = new BigDecimal("550.00");
+        BigDecimal base = new BigDecimal("275.00");
         BigDecimal isr = motor.calcularIsr(base, params);
         assertEquals(0, isr.compareTo(BigDecimal.ZERO), "ISR debe ser $0.00 en tramo exento");
     }
 
     @Test
-    @DisplayName("ISR Tramo I — base exactamente $549.99 → ISR = $0")
+    @DisplayName("ISR Tramo I — base exactamente $274.99 → ISR = $0")
     void isrTramo1_menosDeExento() {
-        BigDecimal isr = motor.calcularIsr(new BigDecimal("549.99"), params);
+        BigDecimal isr = motor.calcularIsr(new BigDecimal("274.99"), params);
         assertEquals(0, isr.compareTo(BigDecimal.ZERO));
     }
 
     @Test
-    @DisplayName("ISR Tramo II — base $600 → (600-550)*10% + $17.67 = $22.67")
+    @DisplayName("ISR Tramo II — base $400 → (400-275)*10% + $8.83 = $21.33")
     void isrTramo2() {
-        BigDecimal isr = motor.calcularIsr(new BigDecimal("600.00"), params);
-        BigDecimal esperado = new BigDecimal("22.67");
+        BigDecimal isr = motor.calcularIsr(new BigDecimal("400.00"), params);
+        BigDecimal esperado = new BigDecimal("21.33");
         assertEquals(0, isr.compareTo(esperado),
-                "ISR Tramo II esperado $22.67 pero fue $" + isr);
+                "ISR Tramo II esperado $21.33 pero fue $" + isr);
     }
 
     @Test
-    @DisplayName("ISR Tramo II límite inferior — base $550.01")
+    @DisplayName("ISR Tramo II límite inferior — base $275.01")
     void isrTramo2_limiteInferior() {
-        BigDecimal isr = motor.calcularIsr(new BigDecimal("550.01"), params);
+        BigDecimal isr = motor.calcularIsr(new BigDecimal("275.01"), params);
         assertTrue(isr.compareTo(BigDecimal.ZERO) > 0, "ISR debe ser > 0 sobre el exento");
     }
 
     @Test
     @DisplayName("ISR Tramo III — base $1000")
     void isrTramo3() {
-        // (1000 - 895.24) * 20% + 60.00
+        // (1000 - 447.62) * 20% + 30.00
         BigDecimal base = new BigDecimal("1000.00");
-        BigDecimal esperado = new BigDecimal("895.24")
+        BigDecimal esperado = new BigDecimal("447.62")
                 .negate().add(base)
                 .multiply(new BigDecimal("0.20"))
-                .add(new BigDecimal("60.00"))
+                .add(new BigDecimal("30.00"))
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal isr = motor.calcularIsr(base, params);
         assertEquals(0, isr.compareTo(esperado),
@@ -90,11 +94,11 @@ class MotorCalculoTest {
     @Test
     @DisplayName("ISR Tramo IV — base $3000")
     void isrTramo4() {
-        // (3000 - 2038.10) * 30% + 288.57
+        // (3000 - 1019.05) * 30% + 144.28
         BigDecimal base = new BigDecimal("3000.00");
-        BigDecimal esperado = base.subtract(new BigDecimal("2038.10"))
+        BigDecimal esperado = base.subtract(new BigDecimal("1019.05"))
                 .multiply(new BigDecimal("0.30"))
-                .add(new BigDecimal("288.57"))
+                .add(new BigDecimal("144.28"))
                 .setScale(2, RoundingMode.HALF_UP);
         BigDecimal isr = motor.calcularIsr(base, params);
         assertEquals(0, isr.compareTo(esperado),
@@ -245,6 +249,70 @@ class MotorCalculoTest {
                 "ISSS patronal tope debe ser $75.00. Fue: $" + r.getAportePatronalIsss());
     }
 
+    // ===== Séptimo día / asueto =====
+
+    @Test
+    @DisplayName("Recargo por día de descanso trabajado — 1 día sobre salario $600")
+    void recargoDiaDescansoTrabajado() {
+        ResultadoCalculo r = motor.calcular(
+                new BigDecimal("600.00"), 30,
+                BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                params, ResumenAusencias.builder().build(), 1);
+
+        BigDecimal valorDia = new BigDecimal("600.00").divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP);
+        BigDecimal recargoEsperado = valorDia.multiply(new BigDecimal("0.5")).setScale(2, RoundingMode.HALF_UP);
+
+        assertEquals(0, r.getRecargoDescansoTrabajado().compareTo(recargoEsperado),
+                "Recargo esperado $" + recargoEsperado + " pero fue $" + r.getRecargoDescansoTrabajado());
+        assertEquals(0, r.getSalarioBruto().compareTo(new BigDecimal("600.00").add(recargoEsperado)),
+                "Bruto debe incluir el recargo por día de descanso trabajado");
+    }
+
+    @Test
+    @DisplayName("Descuento de séptimo día por falta injustificada — 1 semana con falta")
+    void descuentoSeptimoDia_porFaltaInjustificada() {
+        ResumenAusencias ausencias = ResumenAusencias.builder()
+                .semanasConFaltaInjustificada(1)
+                .build();
+
+        ResultadoCalculo r = motor.calcular(
+                new BigDecimal("600.00"), 30,
+                BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                params, ausencias, 0);
+
+        BigDecimal valorDia = new BigDecimal("600.00").divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP);
+        BigDecimal descuentoEsperado = valorDia.setScale(2, RoundingMode.HALF_UP);
+
+        assertEquals(0, r.getDescuentoSeptimoDia().compareTo(descuentoEsperado),
+                "Descuento séptimo día esperado $" + descuentoEsperado + " pero fue $" + r.getDescuentoSeptimoDia());
+        assertEquals(0, r.getSalarioBruto().compareTo(new BigDecimal("600.00").subtract(descuentoEsperado)),
+                "Bruto debe reflejar el descuento del séptimo día");
+    }
+
+    @Test
+    @DisplayName("Séptimo día — recargo y descuento combinados")
+    void septimoDia_recargoYDescuentoCombinados() {
+        ResumenAusencias ausencias = ResumenAusencias.builder()
+                .semanasConFaltaInjustificada(1)
+                .build();
+
+        ResultadoCalculo r = motor.calcular(
+                new BigDecimal("600.00"), 30,
+                BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                params, ausencias, 2);
+
+        BigDecimal valorDia = new BigDecimal("600.00").divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP);
+        BigDecimal recargoEsperado = valorDia.multiply(new BigDecimal("0.5")).multiply(new BigDecimal("2"))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal descuentoEsperado = valorDia.setScale(2, RoundingMode.HALF_UP);
+
+        assertEquals(0, r.getRecargoDescansoTrabajado().compareTo(recargoEsperado));
+        assertEquals(0, r.getDescuentoSeptimoDia().compareTo(descuentoEsperado));
+    }
+
     // ===== Prestaciones =====
 
     @Test
@@ -263,7 +331,9 @@ class MotorCalculoTest {
     @Test
     @DisplayName("Aguinaldo — 1 a <3 años → 15 días")
     void aguinaldo_1a3anios() {
-        BigDecimal ag = motor.calcularAguinaldo(new BigDecimal("408.80"), 2);
+        LocalDate hoy = LocalDate.now();
+        BigDecimal ag = motor.calcularAguinaldo(
+                new BigDecimal("408.80"), hoy.minusYears(2), hoy);
         BigDecimal esperado = new BigDecimal("408.80")
                 .divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("15"))
@@ -274,7 +344,9 @@ class MotorCalculoTest {
     @Test
     @DisplayName("Aguinaldo — 3 a <10 años → 19 días")
     void aguinaldo_3a10anios() {
-        BigDecimal ag = motor.calcularAguinaldo(new BigDecimal("600.00"), 5);
+        LocalDate hoy = LocalDate.now();
+        BigDecimal ag = motor.calcularAguinaldo(
+                new BigDecimal("600.00"), hoy.minusYears(5), hoy);
         BigDecimal esperado = new BigDecimal("600.00")
                 .divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("19"))
@@ -285,7 +357,9 @@ class MotorCalculoTest {
     @Test
     @DisplayName("Aguinaldo — >=10 años → 21 días")
     void aguinaldo_mas10anios() {
-        BigDecimal ag = motor.calcularAguinaldo(new BigDecimal("800.00"), 12);
+        LocalDate hoy = LocalDate.now();
+        BigDecimal ag = motor.calcularAguinaldo(
+                new BigDecimal("800.00"), hoy.minusYears(12), hoy);
         BigDecimal esperado = new BigDecimal("800.00")
                 .divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("21"))
@@ -294,9 +368,23 @@ class MotorCalculoTest {
     }
 
     @Test
-    @DisplayName("Aguinaldo — <1 año → $0")
-    void aguinaldo_menosDeAnio() {
-        BigDecimal ag = motor.calcularAguinaldo(new BigDecimal("408.80"), 0);
-        assertEquals(0, ag.compareTo(BigDecimal.ZERO));
+    @DisplayName("Aguinaldo — <1 año → proporcional por días trabajados")
+    void aguinaldo_menosDeAnio_proporcional() {
+        LocalDate hoy = LocalDate.now();
+        LocalDate ingreso = hoy.minusMonths(6);
+        BigDecimal ag = motor.calcularAguinaldo(
+                new BigDecimal("600.00"), ingreso, hoy);
+
+        long diasTrabajados = java.time.temporal.ChronoUnit.DAYS.between(ingreso, hoy) + 1;
+        BigDecimal proporcion = new BigDecimal(diasTrabajados)
+                .divide(new BigDecimal("365"), 10, RoundingMode.HALF_UP);
+        BigDecimal esperado = new BigDecimal("600.00")
+                .divide(new BigDecimal("30"), 10, RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("15").multiply(proporcion))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        assertTrue(ag.compareTo(BigDecimal.ZERO) > 0, "Aguinaldo proporcional debe ser > 0");
+        assertTrue(ag.compareTo(new BigDecimal("300.00")) < 0, "Aguinaldo de 6 meses debe ser < 300");
+        assertEquals(0, ag.compareTo(esperado));
     }
 }

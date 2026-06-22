@@ -35,4 +35,8 @@ public class ParametrosCalculo {
     private BigDecimal isrTramo4Cuota;    // 288.57
     // Horas laborales mensuales estándar
     private BigDecimal horasMensuales;    // 240 (30 días × 8 horas)
+
+    // Quincena 25
+    private Boolean quincena25Activa;      // true/false
+    private BigDecimal quincena25TopeSalario; // 1500.00
 }

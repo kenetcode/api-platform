@@ -1,11 +1,14 @@
 package com.rhu.api_platform.empleado.dto;
 
 import com.rhu.api_platform.empleado.entity.*;
+import com.rhu.api_platform.turno.entity.DiaSemana;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Set;
 
 @Data
 @Builder
@@ -34,5 +37,17 @@ public class EmpleadoResponse {
     private String contactoEmergenciaTelefono;
     private EstadoEmpleado estado;
     private Boolean esBorrador;
+    private TurnoInfo turno;
     private LocalDateTime creadoEn;
+
+    @Data
+    @Builder
+    public static class TurnoInfo {
+        private Long id;
+        private String nombre;
+        private Set<DiaSemana> diasLaborables;
+        private LocalTime horaEntrada;
+        private LocalTime horaSalida;
+        private BigDecimal horasOrdinariasDiarias;
+    }
 }

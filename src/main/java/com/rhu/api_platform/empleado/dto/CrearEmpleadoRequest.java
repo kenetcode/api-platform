@@ -54,5 +54,6 @@ public class CrearEmpleadoRequest {
     private String numIsss;
     private String contactoEmergenciaNombre;
     private String contactoEmergenciaTelefono;
+    private Long turnoId;
     private Boolean esBorrador;
 }

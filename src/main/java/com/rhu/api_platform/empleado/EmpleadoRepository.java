@@ -13,6 +13,9 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
 
     long countByEstado(EstadoEmpleado estado);
 
+    @Query("SELECT COUNT(e) FROM Empleado e WHERE e.turno.id = :turnoId AND e.estado = 'ACTIVO'")
+    long countByTurnoIdAndEstadoActivo(@Param("turnoId") Long turnoId);
+
     @Query("SELECT e FROM Empleado e WHERE " +
            "(:q IS NULL OR LOWER(e.nombre) LIKE LOWER(CONCAT('%', :q, '%')) " +
            "   OR LOWER(e.apellido) LIKE LOWER(CONCAT('%', :q, '%')) " +

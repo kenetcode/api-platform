@@ -1,5 +1,7 @@
 package com.rhu.api_platform.planilla;
 
+import com.rhu.api_platform.ausencia.AusenciaRepository;
+import com.rhu.api_platform.ausencia.entity.Ausencia;
 import com.rhu.api_platform.common.exception.ConflictoException;
 import com.rhu.api_platform.common.exception.RecursoNoEncontradoException;
 import com.rhu.api_platform.common.exception.ValidacionNegocioException;
@@ -8,8 +10,11 @@ import com.rhu.api_platform.empleado.entity.Empleado;
 import com.rhu.api_platform.empleado.entity.EstadoEmpleado;
 import com.rhu.api_platform.planilla.dto.*;
 import com.rhu.api_platform.planilla.entity.*;
+import com.rhu.api_platform.planilla.motor.CalculadoraAusencias;
+import com.rhu.api_platform.planilla.motor.CalculadoraQuincena25;
 import com.rhu.api_platform.planilla.motor.MotorCalculo;
 import com.rhu.api_platform.planilla.motor.ParametrosCalculo;
+import com.rhu.api_platform.planilla.motor.ResumenAusencias;
 import com.rhu.api_platform.planilla.motor.ResultadoCalculo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.YearMonth;
 import java.util.List;
 
 @Service
@@ -27,17 +33,77 @@ public class PlanillaService {
     private final PlanillaRepository planillaRepository;
     private final DetallePlanillaRepository detallePlanillaRepository;
     private final EmpleadoRepository empleadoRepository;
+    private final AusenciaRepository ausenciaRepository;
     private final MotorCalculo motorCalculo;
+    private final CalculadoraAusencias calculadoraAusencias;
+    private final CalculadoraQuincena25 calculadoraQuincena25;
     private final ParametroLegalService parametroLegalService;
 
     @Transactional
     public PlanillaResponse crearPlanilla(CrearPlanillaRequest req) {
+        PeriodoPlanilla periodo = resolverPeriodo(req);
+
+        if (req.getTipo() == TipoPlanilla.QUINCENA_25
+                && planillaRepository.existsByTipoAndPeriodoMes(TipoPlanilla.QUINCENA_25, req.getPeriodoMes())) {
+            throw new ConflictoException("Ya existe una planilla de Quincena 25 para el período " + req.getPeriodoMes());
+        }
+
         Planilla planilla = Planilla.builder()
                 .periodoMes(req.getPeriodoMes())
+                .numeroQuincena(req.getNumeroQuincena())
+                .fechaInicio(periodo.fechaInicio())
+                .fechaFin(periodo.fechaFin())
                 .tipo(req.getTipo())
                 .estado(EstadoPlanilla.BORRADOR)
                 .build();
         return toResponse(planillaRepository.save(planilla), false);
+    }
+
+    private record PeriodoPlanilla(LocalDate fechaInicio, LocalDate fechaFin) {}
+
+    private PeriodoPlanilla resolverPeriodo(CrearPlanillaRequest req) {
+        YearMonth ym = YearMonth.parse(req.getPeriodoMes());
+        LocalDate inicio;
+        LocalDate fin;
+
+        if (req.getTipo() == TipoPlanilla.QUINCENA_25) {
+            if (req.getNumeroQuincena() != null) {
+                throw new ValidacionNegocioException("Para Quincena 25 no debe indicar número de quincena.");
+            }
+            if (ym.getMonthValue() != 1) {
+                throw new ValidacionNegocioException("La Quincena 25 debe crearse en el período de enero (YYYY-01).");
+            }
+            inicio = ym.atDay(15);
+            fin = ym.atDay(25);
+        } else if (req.getTipo() == TipoPlanilla.QUINCENAL) {
+            if (req.getNumeroQuincena() == null) {
+                throw new ValidacionNegocioException("Para planilla quincenal debe indicar el número de quincena (1 o 2).");
+            }
+            if (req.getNumeroQuincena() != 1 && req.getNumeroQuincena() != 2) {
+                throw new ValidacionNegocioException("El número de quincena debe ser 1 o 2.");
+            }
+            if (req.getNumeroQuincena() == 1) {
+                inicio = ym.atDay(1);
+                fin = ym.atDay(15);
+            } else {
+                inicio = ym.atDay(16);
+                fin = ym.atEndOfMonth();
+            }
+        } else {
+            throw new ValidacionNegocioException("Tipo de planilla no válido. Use: QUINCENAL o QUINCENA_25.");
+        }
+
+        // Si el usuario envía fechas, se validan contra el período esperado
+        if (req.getFechaInicio() != null && !req.getFechaInicio().equals(inicio)) {
+            throw new ValidacionNegocioException(
+                    "La fecha de inicio debe coincidir con el período. Esperado: " + inicio);
+        }
+        if (req.getFechaFin() != null && !req.getFechaFin().equals(fin)) {
+            throw new ValidacionNegocioException(
+                    "La fecha de fin debe coincidir con el período. Esperado: " + fin);
+        }
+
+        return new PeriodoPlanilla(inicio, fin);
     }
 
     @Transactional
@@ -62,6 +128,7 @@ public class PlanillaService {
         detalle.setComisiones(req.getComisiones() != null ? req.getComisiones() : BigDecimal.ZERO);
         detalle.setBonificaciones(req.getBonificaciones() != null ? req.getBonificaciones() : BigDecimal.ZERO);
         detalle.setDescuentosVoluntarios(req.getDescuentosVoluntarios() != null ? req.getDescuentosVoluntarios() : BigDecimal.ZERO);
+        detalle.setDiasDescansoTrabajados(req.getDiasDescansoTrabajados());
 
         return toDetalleResponse(detallePlanillaRepository.save(detalle));
     }
@@ -87,23 +154,11 @@ public class PlanillaService {
         BigDecimal totalNeto = BigDecimal.ZERO;
 
         for (DetallePlanilla detalle : detalles) {
-            ResultadoCalculo resultado = motorCalculo.calcular(
-                    detalle.getEmpleado().getSalarioBase(),
-                    detalle.getDiasLaborados(),
-                    detalle.getHorasExtraDiurnas(),
-                    detalle.getHorasExtraNocturnas(),
-                    detalle.getComisiones(),
-                    detalle.getBonificaciones(),
-                    detalle.getDescuentosVoluntarios(),
-                    params);
+            ResultadoCalculo resultado = planilla.getTipo() == TipoPlanilla.QUINCENA_25
+                    ? calcularQuincena25(detalle, params)
+                    : calcularOrdinario(detalle, planilla, params);
 
-            detalle.setSalarioBruto(resultado.getSalarioBruto());
-            detalle.setIsss(resultado.getIsss());
-            detalle.setAfp(resultado.getAfp());
-            detalle.setIsr(resultado.getIsr());
-            detalle.setSalarioNeto(resultado.getSalarioNeto());
-            detalle.setAportePatronalIsss(resultado.getAportePatronalIsss());
-            detalle.setAportePatronalAfp(resultado.getAportePatronalAfp());
+            aplicarResultado(detalle, resultado);
             detallePlanillaRepository.save(detalle);
 
             totalBruto = totalBruto.add(resultado.getSalarioBruto());
@@ -120,6 +175,52 @@ public class PlanillaService {
         planilla.setTotalNeto(totalNeto);
         planilla.setEstado(EstadoPlanilla.CALCULADA);
         return toResponse(planillaRepository.save(planilla), true);
+    }
+
+    private ResultadoCalculo calcularOrdinario(DetallePlanilla detalle, Planilla planilla, ParametrosCalculo params) {
+        List<Ausencia> ausencias = ausenciaRepository.findSolapadas(
+                detalle.getEmpleado().getId(),
+                planilla.getFechaInicio(),
+                planilla.getFechaFin());
+        ResumenAusencias resumenAusencias = calculadoraAusencias.calcular(
+                ausencias, planilla.getFechaInicio(), planilla.getFechaFin());
+
+        return motorCalculo.calcular(
+                detalle.getEmpleado().getSalarioBase(),
+                detalle.getDiasLaborados(),
+                detalle.getHorasExtraDiurnas(),
+                detalle.getHorasExtraNocturnas(),
+                detalle.getComisiones(),
+                detalle.getBonificaciones(),
+                detalle.getDescuentosVoluntarios(),
+                params,
+                resumenAusencias,
+                detalle.getDiasDescansoTrabajados() != null ? detalle.getDiasDescansoTrabajados() : 0);
+    }
+
+    private ResultadoCalculo calcularQuincena25(DetallePlanilla detalle, ParametrosCalculo params) {
+        YearMonth ym = YearMonth.parse(detalle.getPlanilla().getPeriodoMes());
+        LocalDate fechaCalculo = ym.atDay(25);
+        return calculadoraQuincena25.calcular(detalle.getEmpleado(), fechaCalculo, params);
+    }
+
+    private void aplicarResultado(DetallePlanilla detalle, ResultadoCalculo resultado) {
+        detalle.setSalarioBruto(resultado.getSalarioBruto());
+        detalle.setIsss(resultado.getIsss());
+        detalle.setAfp(resultado.getAfp());
+        detalle.setIsr(resultado.getIsr());
+        detalle.setSalarioNeto(resultado.getSalarioNeto());
+        detalle.setAportePatronalIsss(resultado.getAportePatronalIsss());
+        detalle.setAportePatronalAfp(resultado.getAportePatronalAfp());
+        detalle.setDiasDescontados(resultado.getDiasDescontados());
+        detalle.setDiasPagoParcial(resultado.getDiasPagoParcial());
+        detalle.setPorcentajePagoParcial(resultado.getPorcentajePagoParcial());
+        detalle.setHorasDescontadas(resultado.getHorasDescontadas());
+        detalle.setDiasReportarIsssAfp(resultado.getDiasReportarIsssAfp());
+        detalle.setRecargoDescansoTrabajado(resultado.getRecargoDescansoTrabajado());
+        detalle.setDescuentoSeptimoDia(resultado.getDescuentoSeptimoDia());
+        detalle.setSemanasConFaltaInjustificada(resultado.getSemanasConFaltaInjustificada());
+        detalle.setMontoQuincena25(resultado.getMontoQuincena25());
     }
 
     @Transactional
@@ -153,10 +254,11 @@ public class PlanillaService {
             monto = motorCalculo.calcularVacaciones(empleado.getSalarioBase());
             descripcion = "15 días de salario + 30% de prima vacacional (Art. 177 CT)";
         } else if ("aguinaldo".equalsIgnoreCase(tipo)) {
-            int anios = Period.between(empleado.getFechaIngreso(), LocalDate.now()).getYears();
-            monto = motorCalculo.calcularAguinaldo(empleado.getSalarioBase(), anios);
-            int dias = anios < 1 ? 0 : anios < 3 ? 15 : anios < 10 ? 19 : 21;
-            descripcion = "Aguinaldo: " + dias + " días (" + anios + " años de antigüedad)";
+            LocalDate fechaCalculo = LocalDate.now();
+            monto = motorCalculo.calcularAguinaldo(empleado.getSalarioBase(), empleado.getFechaIngreso(), fechaCalculo);
+            int anios = Period.between(empleado.getFechaIngreso(), fechaCalculo).getYears();
+            String diasTexto = anios < 1 ? "proporcional" : anios < 3 ? "15" : anios < 10 ? "19" : "21";
+            descripcion = "Aguinaldo: " + diasTexto + " días (" + anios + " años de antigüedad)";
         } else {
             throw new ValidacionNegocioException("Tipo de prestación no válido. Use: vacaciones o aguinaldo");
         }
@@ -179,6 +281,9 @@ public class PlanillaService {
         PlanillaResponse.PlanillaResponseBuilder builder = PlanillaResponse.builder()
                 .id(p.getId())
                 .periodoMes(p.getPeriodoMes())
+                .numeroQuincena(p.getNumeroQuincena())
+                .fechaInicio(p.getFechaInicio())
+                .fechaFin(p.getFechaFin())
                 .tipo(p.getTipo())
                 .estado(p.getEstado())
                 .totalBruto(p.getTotalBruto())
@@ -207,6 +312,16 @@ public class PlanillaService {
                 .comisiones(d.getComisiones())
                 .bonificaciones(d.getBonificaciones())
                 .descuentosVoluntarios(d.getDescuentosVoluntarios())
+                .diasDescontados(d.getDiasDescontados())
+                .diasPagoParcial(d.getDiasPagoParcial())
+                .porcentajePagoParcial(d.getPorcentajePagoParcial())
+                .horasDescontadas(d.getHorasDescontadas())
+                .diasReportarIsssAfp(d.getDiasReportarIsssAfp())
+                .diasDescansoTrabajados(d.getDiasDescansoTrabajados())
+                .recargoDescansoTrabajado(d.getRecargoDescansoTrabajado())
+                .semanasConFaltaInjustificada(d.getSemanasConFaltaInjustificada())
+                .descuentoSeptimoDia(d.getDescuentoSeptimoDia())
+                .montoQuincena25(d.getMontoQuincena25())
                 .salarioBruto(d.getSalarioBruto())
                 .isss(d.getIsss())
                 .afp(d.getAfp())

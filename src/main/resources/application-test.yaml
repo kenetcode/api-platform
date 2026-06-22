@@ -12,3 +12,8 @@ spring:
   h2:
     console:
       enabled: false
+
+# Desactiva el DataSeeder en los tests para no contaminar el estado de la base de datos H2
+app:
+  seeder:
+    enabled: false

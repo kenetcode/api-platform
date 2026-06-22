@@ -1,6 +1,7 @@
 package com.rhu.api_platform.ausencia;
 
 import com.rhu.api_platform.ausencia.entity.Ausencia;
+import com.rhu.api_platform.ausencia.entity.TipoAusencia;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,6 +11,8 @@ import java.util.List;
 public interface AusenciaRepository extends JpaRepository<Ausencia, Long> {
 
     List<Ausencia> findByEmpleadoId(Long empleadoId);
+
+    List<Ausencia> findByEmpleadoIdAndTipoIn(Long empleadoId, List<TipoAusencia> tipos);
 
     @Query("SELECT a FROM Ausencia a WHERE a.empleado.id = :empleadoId " +
            "AND NOT (a.fechaFin < :inicio OR a.fechaInicio > :fin)")

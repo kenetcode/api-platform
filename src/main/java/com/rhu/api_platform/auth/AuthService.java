@@ -16,8 +16,10 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
 
     public LoginResponse login(LoginRequest req) {
-        Usuario usuario = usuarioRepository.findByCorreo(req.getCorreo())
-                .orElseThrow(() -> new ValidacionNegocioException("Correo o contraseña incorrectos."));
+        String usuarioInput = req.getUsuario().trim();
+        Usuario usuario = usuarioRepository.findByUsername(usuarioInput)
+                .or(() -> usuarioRepository.findByCorreo(usuarioInput))
+                .orElseThrow(() -> new ValidacionNegocioException("Usuario o contraseña incorrectos."));
 
         if (!usuario.getActivo()) {
             throw new ValidacionNegocioException("El usuario está inactivo.");
@@ -25,7 +27,7 @@ public class AuthService {
 
         String hashIngresado = ApiKeyFiltro.hashApiKey(req.getPassword());
         if (!hashIngresado.equals(usuario.getPasswordHash())) {
-            throw new ValidacionNegocioException("Correo o contraseña incorrectos.");
+            throw new ValidacionNegocioException("Usuario o contraseña incorrectos.");
         }
 
         // Devuelve la apiKey en texto plano para que el frontend la use en headers
@@ -51,6 +53,7 @@ public class AuthService {
         return LoginResponse.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
+                .username(usuario.getUsername())
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol())
                 .apiKey(apiKeyPlana)

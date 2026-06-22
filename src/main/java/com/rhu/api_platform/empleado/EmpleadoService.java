@@ -5,6 +5,9 @@ import com.rhu.api_platform.common.exception.RecursoNoEncontradoException;
 import com.rhu.api_platform.common.exception.ValidacionNegocioException;
 import com.rhu.api_platform.empleado.dto.*;
 import com.rhu.api_platform.empleado.entity.*;
+import com.rhu.api_platform.turno.TurnoRepository;
+import com.rhu.api_platform.turno.entity.EstadoTurno;
+import com.rhu.api_platform.turno.entity.Turno;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +20,7 @@ import java.util.Map;
 public class EmpleadoService {
 
     private final EmpleadoRepository empleadoRepository;
+    private final TurnoRepository turnoRepository;
 
     private static final Map<SectorEmpleado, BigDecimal> SALARIOS_MINIMOS = Map.of(
         SectorEmpleado.COMERCIO_SERVICIOS, new BigDecimal("408.80"),
@@ -31,6 +35,7 @@ public class EmpleadoService {
             throw new ConflictoException("Ya existe un empleado con DUI: " + req.getDui());
         }
         validarSalarioMinimo(req.getSalarioBase(), req.getSector());
+        Turno turno = obtenerTurnoSiAplica(req.getTurnoId());
 
         Empleado empleado = Empleado.builder()
                 .nombre(req.getNombre())
@@ -54,6 +59,7 @@ public class EmpleadoService {
                 .numIsss(req.getNumIsss())
                 .contactoEmergenciaNombre(req.getContactoEmergenciaNombre())
                 .contactoEmergenciaTelefono(req.getContactoEmergenciaTelefono())
+                .turno(turno)
                 .estado(EstadoEmpleado.ACTIVO)
                 .esBorrador(Boolean.TRUE.equals(req.getEsBorrador()))
                 .build();
@@ -104,6 +110,9 @@ public class EmpleadoService {
         empleado.setNumIsss(req.getNumIsss());
         empleado.setContactoEmergenciaNombre(req.getContactoEmergenciaNombre());
         empleado.setContactoEmergenciaTelefono(req.getContactoEmergenciaTelefono());
+        if (req.getTurnoId() != null) {
+            empleado.setTurno(obtenerTurnoSiAplica(req.getTurnoId()));
+        }
         if (req.getEsBorrador() != null) empleado.setEsBorrador(req.getEsBorrador());
 
         return toResponse(empleadoRepository.save(empleado));
@@ -116,6 +125,14 @@ public class EmpleadoService {
         return toResponse(empleadoRepository.save(empleado));
     }
 
+    @Transactional
+    public EmpleadoResponse asignarTurno(Long empleadoId, Long turnoId) {
+        Empleado empleado = buscarPorId(empleadoId);
+        Turno turno = obtenerTurnoSiAplica(turnoId);
+        empleado.setTurno(turno);
+        return toResponse(empleadoRepository.save(empleado));
+    }
+
     public ContadoresResponse obtenerContadores() {
         long activos = empleadoRepository.countByEstado(EstadoEmpleado.ACTIVO);
         long inactivos = empleadoRepository.countByEstado(EstadoEmpleado.INACTIVO);
@@ -124,6 +141,18 @@ public class EmpleadoService {
                 .activos(activos)
                 .inactivos(inactivos)
                 .build();
+    }
+
+    private Turno obtenerTurnoSiAplica(Long turnoId) {
+        if (turnoId == null) {
+            return null;
+        }
+        Turno turno = turnoRepository.findById(turnoId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Turno no encontrado: " + turnoId));
+        if (turno.getEstado() != EstadoTurno.ACTIVO) {
+            throw new ValidacionNegocioException("No se puede asignar un turno inactivo.");
+        }
+        return turno;
     }
 
     private Empleado buscarPorId(Long id) {
@@ -164,6 +193,14 @@ public class EmpleadoService {
                 .numIsss(e.getNumIsss())
                 .contactoEmergenciaNombre(e.getContactoEmergenciaNombre())
                 .contactoEmergenciaTelefono(e.getContactoEmergenciaTelefono())
+                .turno(e.getTurno() != null ? EmpleadoResponse.TurnoInfo.builder()
+                        .id(e.getTurno().getId())
+                        .nombre(e.getTurno().getNombre())
+                        .diasLaborables(e.getTurno().getDiasLaborables())
+                        .horaEntrada(e.getTurno().getHoraEntrada())
+                        .horaSalida(e.getTurno().getHoraSalida())
+                        .horasOrdinariasDiarias(e.getTurno().getHorasOrdinariasDiarias())
+                        .build() : null)
                 .estado(e.getEstado())
                 .esBorrador(e.getEsBorrador())
                 .creadoEn(e.getCreadoEn())

@@ -1,0 +1,7 @@
+# Contraseña de la base de datos MySQL
+DB_PASSWORD=planillas_dev_2024
+
+# Contraseña root de MySQL (solo para Docker)
+DB_ROOT_PASSWORD=root_planillas_2024
+
+API_KEY_SALT=cambia_este_salt_en_produccion_generalo_con_openssl_rand_hex_32

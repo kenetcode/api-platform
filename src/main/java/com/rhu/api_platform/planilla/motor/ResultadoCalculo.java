@@ -27,4 +27,20 @@ public class ResultadoCalculo {
 
     private BigDecimal aportePatronalIsss;
     private BigDecimal aportePatronalAfp;
+
+    // Desglose de ausencias/incapacidades aplicado
+    private int diasDescontados;
+    private int diasPagoParcial;
+    private BigDecimal porcentajePagoParcial;
+    private BigDecimal horasDescontadas;
+    private int diasReportarIsssAfp;
+
+    // Séptimo día / asueto
+    private int diasDescansoTrabajados;
+    private BigDecimal recargoDescansoTrabajado;
+    private int semanasConFaltaInjustificada;
+    private BigDecimal descuentoSeptimoDia;
+
+    // Quincena 25
+    private BigDecimal montoQuincena25;
 }

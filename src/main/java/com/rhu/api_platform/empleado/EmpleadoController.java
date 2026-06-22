@@ -63,4 +63,11 @@ public class EmpleadoController {
     public EmpleadoResponse cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambioEstadoRequest req) {
         return empleadoService.cambiarEstado(id, req.getEstado());
     }
+
+    @PatchMapping("/{id}/turno")
+    @PreAuthorize("hasRole('RRHH')")
+    @Operation(summary = "Asignar turno a un empleado")
+    public EmpleadoResponse asignarTurno(@PathVariable Long id, @Valid @RequestBody AsignarTurnoRequest req) {
+        return empleadoService.asignarTurno(id, req.getTurnoId());
+    }
 }

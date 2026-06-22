@@ -25,6 +25,9 @@ public class UsuarioService {
         if (usuarioRepository.existsByCorreo(req.getCorreo())) {
             throw new ConflictoException("Ya existe un usuario con el correo: " + req.getCorreo());
         }
+        if (usuarioRepository.existsByUsername(req.getUsername())) {
+            throw new ConflictoException("Ya existe un usuario con el nombre de usuario: " + req.getUsername());
+        }
 
         // Contraseña inicial: si no se especifica, se usa el correo como contraseña temporal
         String passwordInicial = (req.getPassword() != null && !req.getPassword().isBlank())
@@ -35,6 +38,7 @@ public class UsuarioService {
 
         Usuario usuario = Usuario.builder()
                 .nombre(req.getNombre())
+                .username(req.getUsername().trim())
                 .correo(req.getCorreo())
                 .rol(req.getRol())
                 .apiKeyHash(ApiKeyFiltro.hashApiKey(apiKeyPlana))
@@ -46,6 +50,7 @@ public class UsuarioService {
         return UsuarioResponse.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
+                .username(usuario.getUsername())
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol())
                 .activo(usuario.getActivo())
@@ -59,6 +64,7 @@ public class UsuarioService {
                 .map(u -> UsuarioResponse.builder()
                         .id(u.getId())
                         .nombre(u.getNombre())
+                        .username(u.getUsername())
                         .correo(u.getCorreo())
                         .rol(u.getRol())
                         .activo(u.getActivo())
@@ -87,6 +93,7 @@ public class UsuarioService {
         return UsuarioResponse.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
+                .username(usuario.getUsername())
                 .correo(usuario.getCorreo())
                 .rol(usuario.getRol())
                 .activo(usuario.getActivo())
@@ -111,6 +118,7 @@ public class UsuarioService {
         return UsuarioResponse.builder()
                 .id(u.getId())
                 .nombre(u.getNombre())
+                .username(u.getUsername())
                 .correo(u.getCorreo())
                 .rol(u.getRol())
                 .activo(u.getActivo())
